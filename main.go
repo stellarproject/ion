@@ -12,7 +12,7 @@ import (
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	"github.com/gomodule/redigo/redis"
 	"github.com/stellarproject/ion/version"
-	"github.com/stellarproject/orbit/services/store"
+	"github.com/stellarproject/orbit/clients/store"
 )
 
 const (
@@ -103,11 +103,11 @@ func cmdDel(args *skel.CmdArgs) error {
 }
 
 func getConn() (redis.Conn, error) {
-	s, err := store.Client()
+	s, err := store.New("")
 	if err != nil {
 		return nil, err
 	}
-	return s.Conn(true), nil
+	return s.RWConn(), nil
 }
 
 func getIPs() (map[string]net.IP, error) {
