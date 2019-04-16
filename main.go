@@ -12,7 +12,7 @@ import (
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	"github.com/gomodule/redigo/redis"
 	"github.com/stellarproject/ion/version"
-	"github.com/stellarproject/orbit/store"
+	"github.com/stellarproject/orbit/services/store"
 )
 
 const (
