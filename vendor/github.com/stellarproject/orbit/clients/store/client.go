@@ -28,7 +28,11 @@
 package store
 
 import (
+	"time"
+
 	"github.com/gomodule/redigo/redis"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -42,24 +46,37 @@ func New(myAddress string) (*Store, error) {
 		return redis.Dial("tcp", Address)
 	}, 5)
 	conn := slave.Get()
-	defer conn.Close()
 
 	st := &Store{
 		m: slave,
 		s: slave,
 	}
 	master, err := redis.String(conn.Do("GET", MasterKey))
+	conn.Close()
 	if err != nil {
 		if err == redis.ErrNil {
 			// if there is no master, we are the master
 			if myAddress != "" {
-				if _, err := conn.Do("SET", MasterKey, myAddress); err != nil {
-					return nil, err
+				conn = slave.Get()
+				if _, err := conn.Do("SETEX", MasterKey, 60, myAddress); err != nil {
+					conn.Close()
+					return nil, errors.Wrap(err, "set master key with ttl")
 				}
+				go func() {
+					defer conn.Close()
+					for range time.Tick(45 * time.Second) {
+						logrus.Debug("setting master key")
+						if _, err := conn.Do("SETEX", MasterKey, 60, myAddress); err != nil {
+							logrus.WithError(err).Error("set master key")
+							conn.Close()
+							conn = slave.Get()
+						}
+					}
+				}()
 			}
 			return st, nil
 		}
-		return nil, err
+		return nil, errors.Wrap(err, "get master key")
 	}
 	st.m = redis.NewPool(func() (redis.Conn, error) {
 		return redis.Dial("tcp", master)
